@@ -36,6 +36,16 @@
   line-height: 1.6;
 }
 
+.error-message {
+  margin: -12px 0 28px;
+  padding: 13px 15px;
+  border: 1px solid #7f1d1d;
+  border-radius: 12px;
+  color: #fecaca;
+  background: #2a0e12;
+  line-height: 1.5;
+}
+
 .booking-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
@@ -383,6 +393,13 @@
   transform: translateY(-1px);
 }
 
+.primary-action:disabled,
+.payment-button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+  transform: none;
+}
+
 .primary-action:focus-visible {
   outline: 3px solid #fca5a5;
   outline-offset: 3px;
@@ -453,6 +470,47 @@
   font-variant-numeric: tabular-nums;
 }
 
+.order-side {
+  justify-items: end;
+  min-width: 170px;
+}
+
+.order-status {
+  font-size: 0.72rem !important;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.order-status.pending {
+  color: #fbbf24;
+}
+
+.order-status.paid {
+  color: #86efac;
+}
+
+.payment-button {
+  padding: 8px 12px;
+  border: 1px solid #4b5563;
+  border-radius: 9px;
+  color: #f3f4f6;
+  background: #1b2029;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.payment-button:hover {
+  border-color: #f87171;
+}
+
+.payment-button:focus-visible {
+  outline: 3px solid #fca5a5;
+  outline-offset: 3px;
+}
+
 @media (max-width: 900px) {
   .booking-layout {
     grid-template-columns: 1fr;
@@ -506,6 +564,10 @@
     align-items: start;
     flex-direction: column;
     gap: 10px;
+  }
+
+  .order-side {
+    justify-items: start;
   }
 }
 

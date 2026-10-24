@@ -15,6 +15,8 @@ public class CinemaDbContext : DbContext
 
     public DbSet<Movie> Movies => Set<Movie>();
 
+    public DbSet<Payment> Payments => Set<Payment>();
+
     protected override void OnModelCreating(
         ModelBuilder modelBuilder
     )

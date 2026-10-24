@@ -6,50 +6,70 @@ type Movie = {
   name: string;
   posterUrl: string;
   unitPrice: number;
+  availableTickets: number;
 };
 
 type Order = {
-  id: number;
+  id: string;
   movieName: string;
   quantity: number;
   unitPrice: number;
   totalValue: number;
+  status: "Pending" | "Paid";
 };
 
-const movies: Movie[] = [
+const API_URL = "http://localhost:5175/api";
+
+const posterByMovieId: Record<number, string> = {
+  1: "/posters/interstellar.jpg",
+  2: "/posters/batman.jpg",
+  3: "/posters/avengers.jpg",
+  4: "/posters/resident-evil.jpg",
+};
+
+const initialMovies: Movie[] = [
   {
     id: 1,
     name: "Interestelar",
     posterUrl: "/posters/interstellar.jpg",
     unitPrice: 32,
+    availableTickets: 100,
   },
   {
     id: 2,
     name: "Batman",
     posterUrl: "/posters/batman.jpg",
     unitPrice: 34,
+    availableTickets: 100,
   },
   {
     id: 3,
     name: "Vingadores",
     posterUrl: "/posters/avengers.jpg",
     unitPrice: 30,
+    availableTickets: 100,
   },
   {
     id: 4,
     name: "Resident Evil",
     posterUrl: "/posters/resident-evil.jpg",
     unitPrice: 36,
+    availableTickets: 100,
   },
 ];
 
 function App() {
-  const [selectedMovieId, setSelectedMovieId] = useState(movies[0].id);
+  const [movies, setMovies] = useState<Movie[]>(initialMovies);
+  const [selectedMovieId, setSelectedMovieId] = useState(initialMovies[0].id);
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
   const [isManuallyPaused, setIsManuallyPaused] = useState(false);
   const [isInteracting, setIsInteracting] = useState(false);
   const [ticketQuantity, setTicketQuantity] = useState(1);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+  const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const activeMovie = movies[activeSlideIndex];
   const visibleMovies = Array.from(
@@ -65,6 +85,55 @@ function App() {
     (currentTotal, order) => currentTotal + order.totalValue,
     0,
   );
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function loadData() {
+      try {
+        const [moviesResponse, ordersResponse] = await Promise.all([
+          fetch(`${API_URL}/movies`),
+          fetch(`${API_URL}/orders`),
+        ]);
+
+        if (!moviesResponse.ok || !ordersResponse.ok) {
+          throw new Error("A API não respondeu corretamente.");
+        }
+
+        const apiMovies = (await moviesResponse.json()) as Array<
+          Omit<Movie, "posterUrl">
+        >;
+        const apiOrders = (await ordersResponse.json()) as Order[];
+
+        if (!isCancelled) {
+          setMovies(
+            apiMovies.map((movie) => ({
+              ...movie,
+              posterUrl: posterByMovieId[movie.id] ?? "",
+            })),
+          );
+          setOrders(apiOrders);
+          setErrorMessage("");
+        }
+      } catch {
+        if (!isCancelled) {
+          setErrorMessage(
+            "Não foi possível conectar à API. Confirme se o backend está ligado na porta 5175.",
+          );
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingData(false);
+        }
+      }
+    }
+
+    void loadData();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia(
@@ -100,22 +169,80 @@ function App() {
     setSelectedMovieId(movieId);
   }
 
-  function registerOrder() {
+  async function registerOrder() {
     if (ticketQuantity < 1) {
       alert("Informe pelo menos um ingresso.");
       return;
     }
 
-    const newOrder: Order = {
-      id: Date.now(),
-      movieName: selectedMovie.name,
-      quantity: ticketQuantity,
-      unitPrice: selectedMovie.unitPrice,
-      totalValue: currentOrderValue,
-    };
+    setIsSubmittingOrder(true);
+    setErrorMessage("");
 
-    setOrders((currentOrders) => [...currentOrders, newOrder]);
-    setTicketQuantity(1);
+    try {
+      const response = await fetch(`${API_URL}/orders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          movieId: selectedMovie.id,
+          quantity: ticketQuantity,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = (await response.json()) as { message?: string };
+        throw new Error(error.message ?? "Não foi possível criar o pedido.");
+      }
+
+      const newOrder = (await response.json()) as Order;
+      setOrders((currentOrders) => [newOrder, ...currentOrders]);
+      setMovies((currentMovies) =>
+        currentMovies.map((movie) =>
+          movie.id === selectedMovie.id
+            ? {
+                ...movie,
+                availableTickets: movie.availableTickets - ticketQuantity,
+              }
+            : movie,
+        ),
+      );
+      setTicketQuantity(1);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Erro inesperado ao criar o pedido.",
+      );
+    } finally {
+      setIsSubmittingOrder(false);
+    }
+  }
+
+  async function processPayment(orderId: string) {
+    setPayingOrderId(orderId);
+    setErrorMessage("");
+
+    try {
+      const response = await fetch(`${API_URL}/payments/${orderId}`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        const error = (await response.json()) as { message?: string };
+        throw new Error(error.message ?? "Não foi possível aprovar o pagamento.");
+      }
+
+      setOrders((currentOrders) =>
+        currentOrders.map((order) =>
+          order.id === orderId ? { ...order, status: "Paid" } : order,
+        ),
+      );
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Erro inesperado ao processar o pagamento.",
+      );
+    } finally {
+      setPayingOrderId(null);
+    }
   }
 
   return (
@@ -124,6 +251,12 @@ function App() {
         <h1>Cinema Commerce</h1>
         <p>Escolha um filme, defina os ingressos e confirme seu pedido.</p>
       </header>
+
+      {errorMessage && (
+        <div className="error-message" role="alert">
+          {errorMessage}
+        </div>
+      )}
 
       <section
         className="booking-layout"
@@ -157,6 +290,7 @@ function App() {
                   <span className="slide-copy">
                     <strong>{movie.name}</strong>
                     <span>Ingressos a R$ {movie.unitPrice.toFixed(2)}</span>
+                    <span>{movie.availableTickets} disponíveis</span>
                     <b>
                       {movie.id === selectedMovieId
                         ? "Filme selecionado"
@@ -229,7 +363,9 @@ function App() {
           <div>
             <span className="status">Sua escolha</span>
             <h2 id="order-title">{selectedMovie.name}</h2>
-            <p>Ingresso inteiro · Sessão de hoje</p>
+            <p>
+              Ingresso inteiro · {selectedMovie.availableTickets} disponíveis
+            </p>
           </div>
 
           <label className="quantity-field">
@@ -237,7 +373,7 @@ function App() {
             <input
               type="number"
               min="1"
-              max="10"
+              max={Math.min(10, selectedMovie.availableTickets)}
               value={ticketQuantity}
               onChange={(event) =>
                 setTicketQuantity(Number(event.target.value))
@@ -260,8 +396,9 @@ function App() {
             className="primary-action"
             type="button"
             onClick={registerOrder}
+            disabled={isSubmittingOrder || selectedMovie.availableTickets < 1}
           >
-            Confirmar pedido
+            {isSubmittingOrder ? "Salvando pedido..." : "Confirmar pedido"}
           </button>
         </aside>
       </section>
@@ -270,7 +407,11 @@ function App() {
         <div className="section-heading">
           <div>
             <h2 id="orders-title">Pedidos registrados</h2>
-            <p>Acompanhe os ingressos adicionados nesta sessão.</p>
+            <p>
+              {isLoadingData
+                ? "Carregando pedidos do banco..."
+                : "Pedidos salvos no banco de dados."}
+            </p>
           </div>
           <strong className="revenue">R$ {totalRevenue.toFixed(2)}</strong>
         </div>
@@ -284,14 +425,31 @@ function App() {
           <ul className="order-list">
             {orders.map((order) => (
               <li key={order.id}>
-                <div>
+                <div className="order-copy">
                   <strong>{order.movieName}</strong>
                   <span>
-                    {order.quantity} ingresso{order.quantity > 1 ? "s" : ""} a R
+                    {order.quantity} ingresso{order.quantity > 1 ? "s" : ""} a R$
                     {order.unitPrice.toFixed(2)}
                   </span>
                 </div>
-                <b>R$ {order.totalValue.toFixed(2)}</b>
+                <div className="order-side">
+                  <span className={`order-status ${order.status.toLowerCase()}`}>
+                    {order.status === "Paid" ? "Pago" : "Pagamento pendente"}
+                  </span>
+                  <b>R$ {order.totalValue.toFixed(2)}</b>
+                  {order.status === "Pending" && (
+                    <button
+                      type="button"
+                      className="payment-button"
+                      disabled={payingOrderId === order.id}
+                      onClick={() => processPayment(order.id)}
+                    >
+                      {payingOrderId === order.id
+                        ? "Processando..."
+                        : "Simular pagamento"}
+                    </button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>

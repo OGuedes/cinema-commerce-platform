@@ -13,6 +13,17 @@ builder.Services.AddDbContext<CinemaDbContext>(options =>
     options.UseSqlite(connectionString)
 );
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("WebApp", policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
@@ -23,7 +34,12 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
+app.UseCors("WebApp");
 
 app.UseAuthorization();
 

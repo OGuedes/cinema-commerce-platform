@@ -98,6 +98,30 @@ namespace CinemaCommerce.Api.Data.Migrations
 
                     b.ToTable("Orders");
                 });
+
+            modelBuilder.Entity("CinemaCommerce.Api.Models.Payment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ProcessedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Payments");
+                });
 #pragma warning restore 612, 618
         }
     }
