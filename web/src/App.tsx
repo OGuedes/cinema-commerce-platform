@@ -92,7 +92,7 @@ function PopcornMark() {
 function App() {
   const [movies, setMovies] = useState<Movie[]>(initialMovies);
   const [selectedMovieId, setSelectedMovieId] = useState(initialMovies[0].id);
-  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+  const [carouselStartIndex, setCarouselStartIndex] = useState(0);
   const [isManuallyPaused, setIsManuallyPaused] = useState(false);
   const [isInteracting, setIsInteracting] = useState(false);
   const [ticketQuantity, setTicketQuantity] = useState(1);
@@ -103,11 +103,10 @@ function App() {
   const [errorMessage, setErrorMessage] = useState("");
   const [showSplash, setShowSplash] = useState(true);
 
-  const activeMovie = movies[activeSlideIndex];
-  const visibleMovies = Array.from(
-    { length: Math.min(2, movies.length) },
-    (_, position) => movies[(activeSlideIndex + position) % movies.length],
+  const orderedMovies = movies.map(
+    (_, offset) => movies[(carouselStartIndex + offset) % movies.length],
   );
+  const loopingMovies = [...orderedMovies, ...orderedMovies];
   const selectedMovie =
     movies.find((movie) => movie.id === selectedMovieId) ?? movies[0];
 
@@ -179,38 +178,23 @@ function App() {
     };
   }, []);
 
-  useEffect(() => {
-    const prefersReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-
-    if (isManuallyPaused || isInteracting || prefersReducedMotion) {
-      return;
-    }
-
-    const timer = window.setInterval(() => {
-      setActiveSlideIndex((currentIndex) =>
-        currentIndex === movies.length - 1 ? 0 : currentIndex + 1,
-      );
-    }, 10000);
-
-    return () => window.clearInterval(timer);
-  }, [isInteracting, isManuallyPaused]);
+  function selectMovie(movieId: number) {
+    setSelectedMovieId(movieId);
+  }
 
   function showPreviousMovie() {
-    setActiveSlideIndex((currentIndex) =>
-      currentIndex === 0 ? movies.length - 1 : currentIndex - 1,
-    );
+    const previousIndex =
+      carouselStartIndex === 0 ? movies.length - 1 : carouselStartIndex - 1;
+
+    setCarouselStartIndex(previousIndex);
+    setSelectedMovieId(movies[previousIndex].id);
   }
 
   function showNextMovie() {
-    setActiveSlideIndex((currentIndex) =>
-      currentIndex === movies.length - 1 ? 0 : currentIndex + 1,
-    );
-  }
+    const nextIndex = (carouselStartIndex + 1) % movies.length;
 
-  function selectMovie(movieId: number) {
-    setSelectedMovieId(movieId);
+    setCarouselStartIndex(nextIndex);
+    setSelectedMovieId(movies[nextIndex].id);
   }
 
   async function registerOrder() {
@@ -333,15 +317,25 @@ function App() {
             onFocusCapture={() => setIsInteracting(true)}
             onBlurCapture={() => setIsInteracting(false)}
           >
-            <div className="carousel-track">
-              {visibleMovies.map((movie) => (
+            <div
+              key={carouselStartIndex}
+              className={`carousel-track${
+                isManuallyPaused || isInteracting ? " paused" : ""
+              }`}
+            >
+              {loopingMovies.map((movie, index) => {
+                const isRepeatedCopy = index >= movies.length;
+
+                return (
                 <button
-                  key={movie.id}
+                  key={`${movie.id}-${isRepeatedCopy ? "copy" : "original"}`}
                   type="button"
                   className={`carousel-slide${
                     movie.id === selectedMovieId ? " selected" : ""
                   }`}
                   aria-pressed={movie.id === selectedMovieId}
+                  aria-hidden={isRepeatedCopy || undefined}
+                  tabIndex={isRepeatedCopy ? -1 : 0}
                   onClick={() => selectMovie(movie.id)}
                 >
                   <img src={movie.posterUrl} alt={`Pôster de ${movie.name}`} />
@@ -357,7 +351,8 @@ function App() {
                     </b>
                   </span>
                 </button>
-              ))}
+                );
+              })}
             </div>
 
             <div className="carousel-controls">
@@ -372,20 +367,9 @@ function App() {
                 </svg>
               </button>
 
-              <div className="carousel-dots" aria-label="Escolha um slide">
-                {movies.map((movie, index) => (
-                  <button
-                    key={movie.id}
-                    type="button"
-                    className={index === activeSlideIndex ? "active" : ""}
-                    aria-label={`Mostrar ${movie.name}`}
-                    aria-current={
-                      index === activeSlideIndex ? "true" : undefined
-                    }
-                    onClick={() => setActiveSlideIndex(index)}
-                  />
-                ))}
-              </div>
+              <span className="carousel-hint">
+                O carrossel pausa enquanto você escolhe
+              </span>
 
               <button
                 type="button"
@@ -407,13 +391,6 @@ function App() {
               >
                 {isManuallyPaused ? "Continuar" : "Pausar"}
               </button>
-            </div>
-
-            <div className="autoplay-progress" aria-hidden="true">
-              <span
-                key={activeMovie.id}
-                className={isManuallyPaused || isInteracting ? "paused" : ""}
-              />
             </div>
           </div>
         </div>
