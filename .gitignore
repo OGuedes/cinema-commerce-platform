@@ -1,0 +1,31 @@
+web/node_modules/
+web/dist/
+mobile/node_modules/
+mobile/.expo/
+.env
+.env.*
+!.env.example
+
+# React
+web/node_modules/
+web/dist/
+
+# React Native
+mobile/node_modules/
+mobile/.expo/
+
+# .NET
+backend/**/bin/
+backend/**/obj/
+*.user
+*.suo
+
+# Banco local
+*.db
+*.db-shm
+*.db-wal
+
+# Segredos
+.env
+.env.*
+!.env.example
