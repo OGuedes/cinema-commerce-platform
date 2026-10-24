@@ -5,6 +5,7 @@ Aplicação full stack de venda de ingressos criada como projeto de estudo de ba
 ## Funcionalidades
 
 - catálogo de filmes com carrossel responsivo;
+- abertura animada e favicon próprios em SVG;
 - criação e consulta de pedidos;
 - validação de quantidade e estoque;
 - redução automática do estoque após a reserva;

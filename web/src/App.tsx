@@ -58,6 +58,37 @@ const initialMovies: Movie[] = [
   },
 ];
 
+function PopcornMark() {
+  return (
+    <svg
+      className="popcorn-mark"
+      viewBox="0 0 64 64"
+      aria-hidden="true"
+    >
+      <g className="popcorn-kernels" fill="currentColor">
+        <circle className="kernel kernel-left" cx="22" cy="23" r="10" />
+        <circle className="kernel kernel-center" cx="32" cy="17" r="11" />
+        <circle className="kernel kernel-right" cx="43" cy="23" r="10" />
+        <circle className="kernel kernel-fill" cx="32" cy="27" r="12" />
+      </g>
+      <path
+        d="M17 30h30l-4 27H21L17 30Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="4"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m27 31 1.5 25M38 31l-2 25"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function App() {
   const [movies, setMovies] = useState<Movie[]>(initialMovies);
   const [selectedMovieId, setSelectedMovieId] = useState(initialMovies[0].id);
@@ -70,6 +101,7 @@ function App() {
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showSplash, setShowSplash] = useState(true);
 
   const activeMovie = movies[activeSlideIndex];
   const visibleMovies = Array.from(
@@ -85,6 +117,18 @@ function App() {
     (currentTotal, order) => currentTotal + order.totalValue,
     0,
   );
+
+  useEffect(() => {
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    const timer = window.setTimeout(
+      () => setShowSplash(false),
+      prefersReducedMotion ? 420 : 1500,
+    );
+
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     let isCancelled = false;
@@ -246,7 +290,22 @@ function App() {
   }
 
   return (
-    <main className="app-shell">
+    <>
+      {showSplash && (
+        <div
+          className="splash-screen"
+          role="status"
+          aria-label="Abrindo Cinema Commerce"
+        >
+          <div className="splash-content">
+            <PopcornMark />
+            <strong>Cinema Commerce</strong>
+            <span>Ingressos em cena</span>
+          </div>
+        </div>
+      )}
+
+      <main className="app-shell">
       <header className="page-header">
         <h1>Cinema Commerce</h1>
         <p>Escolha um filme, defina os ingressos e confirme seu pedido.</p>
@@ -455,7 +514,8 @@ function App() {
           </ul>
         )}
       </section>
-    </main>
+      </main>
+    </>
   );
 }
 
